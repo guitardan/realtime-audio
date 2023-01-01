@@ -17,6 +17,7 @@ def sine(f, t):
 
 def get_modulated_sine(num_samples = 8192, f = 220, gain = 5):
     t = np.arange(num_samples) / Fs
+    #f = 2**(1/12) * f
     return gain * sine(sine(sine(sine(f, t) + 1, t + 2), t + 3), t)
 
 def get_snare_waveform(num_samples = 8192):
@@ -46,24 +47,30 @@ class Sound():
         self.label = label
         self.is_on = False
         self.sample_index = 0
+        self.is_quantized_on = False
+        self.period = 1e5
+        self.shift = 0
         self.label_dependent_set()
 
     def label_dependent_set(self):
         if self.label.lower() == 'kick':
             self.key_press = key_per_char['space_bar']
             self.waveform = get_kick_waveform()
+            self.period = 2 * self.period
+        elif self.label.lower() == 'snare':
+            self.key_press = key_per_char['b']
+            self.waveform = get_snare_waveform()
+            self.shift = 2 * self.period
+            self.period = 4 * self.period
         elif self.label.lower() == 'sine':
             self.key_press = key_per_char['down_arrow']
             self.waveform = get_modulated_sine()
         elif self.label.lower() == 'click':
             self.key_press = key_per_char['up_arrow']
             self.waveform = get_click_waveform()
-        elif self.label.lower() == 'hihat':
+        else:
             self.key_press = key_per_char['return']
             self.waveform = get_hihat_waveform()
-        else:
-            self.key_press = key_per_char['b']
-            self.waveform = get_snare_waveform()
 
 sounds = [
     Sound('CLICK'),
@@ -72,6 +79,7 @@ sounds = [
     Sound('SINE'),
     Sound('SNARE')
 ]
+is_sequencer = True # False
 
 shell = curses.initscr()
 shell.nodelay(True)
@@ -86,27 +94,41 @@ try:
 
         out = np.zeros((frames, 1))
         for sound in sounds:
-            if sound.is_on:
+            sound_on = sound.is_quantized_on if is_sequencer else sound.is_on
+            if sound_on:
                 n = (sound.sample_index + np.arange(frames)).reshape(-1, 1)
                 out += sound.waveform[n]
                 sound.sample_index += frames
+
             if sound.sample_index >= len(sound.waveform):
-                sound.is_on = False
+                if is_sequencer:
+                    sound.is_quantized_on = False
+                else:
+                    sound.is_on = False
                 sound.sample_index = 0
-        outdata[:] = out
+
+        outdata[:] = 0.1 * out
 
     with sd.OutputStream(channels=2, callback=callback, samplerate=Fs):
+        count = 0
         while True:
             key = shell.getch()
+
             if key != -1:
                 shell.erase()
                 shell.addstr(0, 25, str(key) + ' (UNASSIGNED)', curses.A_NORMAL)
+
             for sound in sounds:
                 if key == sound.key_press:
                     shell.erase()
                     shell.addstr(0, sound.key_press, sound.label, curses.A_NORMAL)
                     sound.is_on = True
-            #f = 2**(1/12) * f # f = f / 2**(1/12)
+                    count = 1
+
+                if count % sound.period == sound.shift and sound.is_on:
+                    sound.is_quantized_on = True
+
+            count += 1
 
 except KeyboardInterrupt:
     curses.nocbreak()
