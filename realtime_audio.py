@@ -2,84 +2,66 @@ import numpy as np
 import sounddevice as sd
 import curses
 import sys
+import waveforms
+from time import sleep
+
+n_instruments = 4
+labels = ['KICK', 'HIHAT', 'SNARE', 'CLICK']
+n_beats = 16
+is_sequencer = True # False
+period = 1e3 # 1e5 # produce reasonable BPM
+gain = 0.1
+marker = '.'
 
 key_per_char = {
     'return' : 10,
     'space_bar' : 32,
     'up_arrow' : 65,
     'down_arrow' : 66,
+    'right_arrow' : 67,
+    'left_arrow' : 68,
     'b' : 98
     }
+
 Fs = sd.query_devices('output')['default_samplerate']
 
-def sine(f, t):
-    return np.sin(2 * np.pi * f * t)
-
-def get_modulated_sine(num_samples = 8192, f = 220, gain = 5):
-    t = np.arange(num_samples) / Fs
-    #f = 2**(1/12) * f
-    return gain * sine(sine(sine(sine(f, t) + 1, t + 2), t + 3), t)
-
-def get_snare_waveform(num_samples = 8192):
-    t = np.arange(num_samples) / Fs
-    return 5 * sine(sine(sine(sine(220, t) + 1, t + 2), t + 3), t + 4)
-
-def get_click_waveform(num_samples = 1024):
-    t = np.arange(num_samples) / Fs
-    return 5 * sine(sine(sine(sine(220, t) + 1, t + 2), t + 3), t + 4)
-
-def get_hihat_waveform(num_samples = 1024, b_0 = 50):
-    a = num_samples//2
-    z = np.random.randn(num_samples)
-    x = np.arange(num_samples)
-    return np.exp(-((x-a)/b_0)**2) + z
-
-def get_kick_waveform(num_samples = 1024, b_0 = 10): 
-    a = num_samples//2
-    x = np.arange(num_samples)
-    y = np.exp(-((x-a)/b_0)**2)
-    for b in [12, 15, 20, 50, 100, 200]: # kick fattening
-        y += np.exp(-((x-a)/b)**2)
-    return 10 * y
-
 class Sound():
-    def __init__(self, label):
+    def __init__(self, label, period = period, shift = 0, is_on = False):
         self.label = label
-        self.is_on = False
+        self.is_on = is_on
         self.sample_index = 0
         self.is_quantized_on = False
-        self.period = 1e5
-        self.shift = 0
+        self.period = period
+        self.shift = shift
         self.label_dependent_set()
 
     def label_dependent_set(self):
         if self.label.lower() == 'kick':
             self.key_press = key_per_char['space_bar']
-            self.waveform = get_kick_waveform()
-            self.period = 2 * self.period
+            self.waveform = waveforms.get_kick()
+            #self.period = 2 * self.period
         elif self.label.lower() == 'snare':
             self.key_press = key_per_char['b']
-            self.waveform = get_snare_waveform()
-            self.shift = 2 * self.period
-            self.period = 4 * self.period
+            self.waveform = waveforms.get_snare(Fs)
+            #self.shift = 2 * self.period
+            #self.period = 4 * self.period
         elif self.label.lower() == 'sine':
             self.key_press = key_per_char['down_arrow']
-            self.waveform = get_modulated_sine()
+            self.waveform = waveforms.get_modulated_sine(Fs)
         elif self.label.lower() == 'click':
             self.key_press = key_per_char['up_arrow']
-            self.waveform = get_click_waveform()
+            self.waveform = waveforms.get_click(Fs)
         else:
             self.key_press = key_per_char['return']
-            self.waveform = get_hihat_waveform()
+            self.waveform = waveforms.get_hihat()
 
 sounds = [
-    Sound('CLICK'),
-    Sound('HIHAT'),
-    Sound('KICK'),
-    Sound('SINE'),
-    Sound('SNARE')
+    #Sound('CLICK'),
+    #Sound('HIHAT'),
+    #Sound('KICK'),
+    #Sound('SINE'),
+    #Sound('SNARE')
 ]
-is_sequencer = True # False
 
 shell = curses.initscr()
 shell.nodelay(True)
@@ -107,23 +89,77 @@ try:
                     sound.is_on = False
                 sound.sample_index = 0
 
-        outdata[:] = 0.1 * out
+        outdata[:] = gain * out
 
     with sd.OutputStream(channels=2, callback=callback, samplerate=Fs):
         count = 0
+        i, j = 0, 0
+        grid = np.zeros((n_instruments, n_beats))
+
         while True:
             key = shell.getch()
 
-            if key != -1:
-                shell.erase()
-                shell.addstr(0, 25, str(key) + ' (UNASSIGNED)', curses.A_NORMAL)
+            for m in range(grid.shape[0]):
+                for n in range(grid.shape[1]):
+                    if m == i and n == j and grid[i, j] == 0:
+                        continue
+                    if grid[m, n] == 1: # keep on
+                        shell.addstr(m, n, marker, curses.A_BOLD)
+                    else:
+                        shell.addstr(m, n, '_', curses.A_BOLD)
+            
+            if key == key_per_char['space_bar']:
+                if grid[i, j] == 1: # turn off
+                    shell.addstr(i, j, '_', curses.A_BOLD)
+                    grid[i, j] = 0
+                    on_sounds = []
+                    for s in sounds:
+                        if s.label == labels[i] and s.shift == j*period:
+                            continue
+                        on_sounds.append(s)
+                    sounds = on_sounds
+                else:
+                    shell.addstr(i, j, marker, curses.A_BOLD)
+                    grid[i, j] = 1
+                    sounds.append(Sound(
+                            labels[i],
+                            period=grid.shape[1]*period, # period, # 
+                            shift=j*period, # 0, # 
+                            is_on=True))
+            else:
+                if grid[i, j] == 1:
+                    shell.addstr(i, j, marker if count % 2 == 0 else ' ', curses.A_BOLD)
+                else:
+                    shell.addstr(i, j, '_' if count % 2 == 0 else ' ', curses.A_BOLD)
+            
+            if key == key_per_char['right_arrow']:
+                j += 1
+            if key == key_per_char['left_arrow']:
+                j -= 1
+            if key == key_per_char['up_arrow']:
+                i -= 1
+            if key == key_per_char['down_arrow']:
+                i += 1
+
+            if i < 0:
+                i = 0
+            if j < 0:
+                j = 0
+            if i >= grid.shape[0]: # TODO
+                i = grid.shape[0] - 1
+            if j >= grid.shape[1]:
+                j = grid.shape[1] - 1
+
+            # if key != -1:
+            #     shell.erase()
+            #     shell.addstr(0, 25, str(key) + ' (UNASSIGNED)', curses.A_NORMAL)
 
             for sound in sounds:
-                if key == sound.key_press:
-                    shell.erase()
-                    shell.addstr(0, sound.key_press, sound.label, curses.A_NORMAL)
-                    sound.is_on = True
-                    count = 1
+                # if key == sound.key_press:
+                #     shell.erase()
+                #     shell.addstr(0, sound.key_press, sound.label, curses.A_NORMAL)
+                #     sound.is_on = True
+                #     count = 1 # ???
 
                 if count % sound.period == sound.shift and sound.is_on:
                     sound.is_quantized_on = True
