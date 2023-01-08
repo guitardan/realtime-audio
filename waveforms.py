@@ -16,11 +16,11 @@ def get_click(Fs, num_samples = 1024):
     t = np.arange(num_samples) / Fs
     return 5 * sine(sine(sine(sine(220, t) + 1, t + 2), t + 3), t + 4)
 
-def get_hihat(num_samples = 1024, b_0 = 50):
+def get_hihat(num_samples = 1024, b_0 = 100):
     a = num_samples//2
     z = np.random.randn(num_samples)
     x = np.arange(num_samples)
-    return np.exp(-((x-a)/b_0)**2) + z
+    return 10 * np.exp(-((x-a)/b_0)**2) + z
 
 def get_kick(num_samples = 1024, b_0 = 10): 
     a = num_samples//2
