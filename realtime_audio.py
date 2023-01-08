@@ -1,14 +1,11 @@
 import numpy as np
 import sounddevice as sd
-import curses
-import sys
-import waveforms
-from time import sleep
+import sys, curses, waveforms
 
+n_beats = 16
 n_instruments = 4
 labels = ['KICK', 'HIHAT', 'SNARE', 'CLICK']
-n_beats = 16
-is_sequencer = True # False
+is_sequencer = True
 period = 1e3 # 1e5 # produce reasonable BPM
 gain = 0.1
 marker = '.'
@@ -55,19 +52,44 @@ class Sound():
             self.key_press = key_per_char['return']
             self.waveform = waveforms.get_hihat()
 
-sounds = [
-    #Sound('CLICK'),
-    #Sound('HIHAT'),
-    #Sound('KICK'),
-    #Sound('SINE'),
-    #Sound('SNARE')
-]
+if is_sequencer:
+    sounds = []
+else:
+    sounds = [
+        Sound('CLICK'),
+        Sound('HIHAT'),
+        Sound('KICK'),
+        Sound('SINE'),
+        Sound('SNARE')
+    ]
 
 shell = curses.initscr()
 shell.nodelay(True)
 curses.noecho()
 curses.cbreak()
 #n_rows, n_cols = shell.getmaxyx()
+
+def process_arrow_key_input(key, i, j):
+    if key == key_per_char['right_arrow']:
+        j += 1
+    if key == key_per_char['left_arrow']:
+        j -= 1
+    if key == key_per_char['up_arrow']:
+        i -= 1
+    if key == key_per_char['down_arrow']:
+        i += 1
+    return i, j
+
+def limit_to_grid(i, j):
+    if i < 0:
+        i = 0
+    if j < 0:
+        j = 0
+    if i >= grid.shape[0]:
+        i = grid.shape[0] - 1
+    if j >= grid.shape[1]:
+        j = grid.shape[1] - 1
+    return i, j
 
 try:
     def callback(outdata, frames, time, status):
@@ -98,6 +120,19 @@ try:
 
         while True:
             key = shell.getch()
+
+            for sound in sounds:
+                if is_sequencer:
+                    if count % sound.period == sound.shift and sound.is_on:
+                        sound.is_quantized_on = True
+                elif key == sound.key_press:
+                    shell.erase()
+                    shell.addstr(0, sound.key_press, sound.label, curses.A_NORMAL)
+                    sound.is_on = True
+                    #count = 1 # ???
+
+            if not is_sequencer:
+                continue
 
             for m in range(grid.shape[0]):
                 for n in range(grid.shape[1]):
@@ -131,38 +166,13 @@ try:
                     shell.addstr(i, j, marker if count % 2 == 0 else ' ', curses.A_BOLD)
                 else:
                     shell.addstr(i, j, '_' if count % 2 == 0 else ' ', curses.A_BOLD)
-            
-            if key == key_per_char['right_arrow']:
-                j += 1
-            if key == key_per_char['left_arrow']:
-                j -= 1
-            if key == key_per_char['up_arrow']:
-                i -= 1
-            if key == key_per_char['down_arrow']:
-                i += 1
 
-            if i < 0:
-                i = 0
-            if j < 0:
-                j = 0
-            if i >= grid.shape[0]: # TODO
-                i = grid.shape[0] - 1
-            if j >= grid.shape[1]:
-                j = grid.shape[1] - 1
+            i, j = process_arrow_key_input(key, i, j)
+            i, j = limit_to_grid(i, j)
 
             # if key != -1:
             #     shell.erase()
             #     shell.addstr(0, 25, str(key) + ' (UNASSIGNED)', curses.A_NORMAL)
-
-            for sound in sounds:
-                # if key == sound.key_press:
-                #     shell.erase()
-                #     shell.addstr(0, sound.key_press, sound.label, curses.A_NORMAL)
-                #     sound.is_on = True
-                #     count = 1 # ???
-
-                if count % sound.period == sound.shift and sound.is_on:
-                    sound.is_quantized_on = True
 
             count += 1
 
