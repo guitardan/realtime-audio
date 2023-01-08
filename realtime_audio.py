@@ -2,11 +2,18 @@ import numpy as np
 import sounddevice as sd
 import sys, curses, waveforms
 
+if len(sys.argv) > 1:
+    is_sequencer = False
+    print('running as sample trigger, press ENTER to continue...')
+    input()
+else:
+    is_sequencer = True
+    print('running as sequencer, press ENTER to continue...')
+    input()
 n_beats = 16
 n_instruments = 4
 labels = ['KICK', 'HIHAT', 'SNARE', 'CLICK']
-is_sequencer = True
-period = 1e3 # 1e5 # produce reasonable BPM
+period = 1e3 # produce reasonable BPM
 gain = 0.1
 marker = '.'
 
@@ -114,8 +121,7 @@ try:
         outdata[:] = gain * out
 
     with sd.OutputStream(channels=2, callback=callback, samplerate=Fs):
-        count = 0
-        i, j = 0, 0
+        count, i, j = 0, 0, 0
         grid = np.zeros((n_instruments, n_beats))
 
         while True:
