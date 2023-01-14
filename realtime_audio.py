@@ -1,6 +1,7 @@
 import numpy as np
 import sounddevice as sd
 import sys, curses, waveforms
+from curses import wrapper
 
 if len(sys.argv) > 1:
     is_sequencer = False
@@ -70,8 +71,8 @@ else:
         Sound('SNARE')
     ]
 
-shell = curses.initscr()
-shell.nodelay(True)
+stdscr = curses.initscr()
+stdscr.nodelay(True)
 curses.noecho()
 curses.cbreak()
 #n_rows, n_cols = shell.getmaxyx()
@@ -97,6 +98,45 @@ def limit_to_grid(i, j):
     if j >= grid.shape[1]:
         j = grid.shape[1] - 1
     return i, j
+
+def update_grid():
+    for m in range(grid.shape[0]):
+        for n in range(grid.shape[1]):
+            if m == i and n == j and grid[i, j] == 0:
+                continue
+            if grid[m, n] == 1: # keep on
+                stdscr.addstr(m, n, marker, curses.A_BOLD)
+            else:
+                stdscr.addstr(m, n, '_', curses.A_BOLD)
+
+def remove_off(sounds):
+    out = []
+    for s in sounds:
+        if s.label == labels[i] and s.shift == j*period:
+            continue
+        out.append(s)
+    return out
+
+def process_key_press(sounds):
+    if grid[i, j] == 1: # turn off
+        stdscr.addstr(i, j, '_', curses.A_BOLD)
+        grid[i, j] = 0
+        sounds = remove_off(sounds)
+    else:
+        stdscr.addstr(i, j, marker, curses.A_BOLD)
+        grid[i, j] = 1
+        sounds.append(Sound(
+                labels[i],
+                period=grid.shape[1]*period, # period, # 
+                shift=j*period, # 0, # 
+                is_on=True))
+    return sounds
+
+def blink_cursor():
+    if grid[i, j] == 1:
+        stdscr.addstr(i, j, marker if count % 2 == 0 else ' ', curses.A_BOLD)
+    else:
+        stdscr.addstr(i, j, '_' if count % 2 == 0 else ' ', curses.A_BOLD)
 
 try:
     def callback(outdata, frames, time, status):
@@ -125,53 +165,25 @@ try:
         grid = np.zeros((n_instruments, n_beats))
 
         while True:
-            key = shell.getch()
+            key = stdscr.getch()
 
             for sound in sounds:
                 if is_sequencer:
                     if count % sound.period == sound.shift and sound.is_on:
                         sound.is_quantized_on = True
                 elif key == sound.key_press:
-                    shell.erase()
-                    shell.addstr(0, sound.key_press, sound.label, curses.A_NORMAL)
+                    stdscr.erase()
+                    stdscr.addstr(0, sound.key_press, sound.label, curses.A_NORMAL)
                     sound.is_on = True
-                    #count = 1 # ???
 
             if not is_sequencer:
                 continue
 
-            for m in range(grid.shape[0]):
-                for n in range(grid.shape[1]):
-                    if m == i and n == j and grid[i, j] == 0:
-                        continue
-                    if grid[m, n] == 1: # keep on
-                        shell.addstr(m, n, marker, curses.A_BOLD)
-                    else:
-                        shell.addstr(m, n, '_', curses.A_BOLD)
-            
+            update_grid()
             if key == key_per_char['space_bar']:
-                if grid[i, j] == 1: # turn off
-                    shell.addstr(i, j, '_', curses.A_BOLD)
-                    grid[i, j] = 0
-                    on_sounds = []
-                    for s in sounds:
-                        if s.label == labels[i] and s.shift == j*period:
-                            continue
-                        on_sounds.append(s)
-                    sounds = on_sounds
-                else:
-                    shell.addstr(i, j, marker, curses.A_BOLD)
-                    grid[i, j] = 1
-                    sounds.append(Sound(
-                            labels[i],
-                            period=grid.shape[1]*period, # period, # 
-                            shift=j*period, # 0, # 
-                            is_on=True))
+                sounds = process_key_press(sounds)
             else:
-                if grid[i, j] == 1:
-                    shell.addstr(i, j, marker if count % 2 == 0 else ' ', curses.A_BOLD)
-                else:
-                    shell.addstr(i, j, '_' if count % 2 == 0 else ' ', curses.A_BOLD)
+                blink_cursor()
 
             i, j = process_arrow_key_input(key, i, j)
             i, j = limit_to_grid(i, j)
