@@ -141,7 +141,7 @@ def blink_cursor():
 try:
     def callback(outdata, frames, time, status):
         if status:
-            print(status, file=sys.stderr)
+            stdscr.addstr(grid.shape[0], grid.shape[1], str(status), curses.A_BOLD)
 
         out = np.zeros((frames, 1))
         for sound in sounds:
