@@ -75,7 +75,7 @@ stdscr = curses.initscr()
 stdscr.nodelay(True)
 curses.noecho()
 curses.cbreak()
-#n_rows, n_cols = shell.getmaxyx()
+n_rows, n_cols = stdscr.getmaxyx()
 
 def process_arrow_key_input(key, i, j):
     if key == key_per_char['right_arrow']:
@@ -173,7 +173,7 @@ try:
                         sound.is_quantized_on = True
                 elif key == sound.key_press:
                     stdscr.erase()
-                    stdscr.addstr(0, sound.key_press, sound.label, curses.A_NORMAL)
+                    stdscr.addstr(0, sound.key_press if sound.key_press < n_cols else n_cols - len(sound.label), sound.label, curses.A_NORMAL)
                     sound.is_on = True
 
             if not is_sequencer:
