@@ -11,12 +11,15 @@ else:
     is_sequencer = True
     print('running as sequencer, press ENTER to continue...')
     input()
+
+is_debug = False # True
 n_beats = 16
 n_instruments = 4
 labels = ['KICK', 'HIHAT', 'SNARE', 'CLICK']
 period = 1e3 # produce reasonable BPM
 gain = 0.1
-marker = '.'
+marker = '■'
+visible_color_indices = np.random.permutation([0, 2, 3, 4, 5, 6, 7, 10])
 
 key_per_char = {
     'return' : 10,
@@ -88,9 +91,9 @@ def update_grid(stdscr, grid, i, j):
             if m == i and n == j and grid[i, j] == 0:
                 continue
             if grid[m, n] == 1: # keep on
-                stdscr.addstr(m, n, marker, curses.A_BOLD)
+                stdscr.addstr(m, n, marker, curses.color_pair(visible_color_indices[m]))
             else:
-                stdscr.addstr(m, n, '_', curses.A_BOLD)
+                stdscr.addstr(m, n, '_', curses.color_pair(visible_color_indices[m]))
 
 def remove_off(sounds, i, j):
     out = []
@@ -102,11 +105,11 @@ def remove_off(sounds, i, j):
 
 def process_key_press(stdscr, sounds, grid, i, j):
     if grid[i, j] == 1: # turn off
-        stdscr.addstr(i, j, '_', curses.A_BOLD)
+        stdscr.addstr(i, j, '_', curses.color_pair(visible_color_indices[i]))
         grid[i, j] = 0
         sounds = remove_off(sounds, i, j)
     else:
-        stdscr.addstr(i, j, marker, curses.A_BOLD)
+        stdscr.addstr(i, j, marker, curses.color_pair(visible_color_indices[i]))
         grid[i, j] = 1
         sounds.append(Sound(
                 labels[i],
@@ -117,14 +120,32 @@ def process_key_press(stdscr, sounds, grid, i, j):
 
 def blink_cursor(stdscr, grid, i, j, count):
     if grid[i, j] == 1:
-        stdscr.addstr(i, j, marker if count % 2 == 0 else ' ', curses.A_BOLD)
+        stdscr.addstr(i, j, marker if count % 2 == 0 else ' ', curses.color_pair(visible_color_indices[i]))
     else:
-        stdscr.addstr(i, j, '_' if count % 2 == 0 else ' ', curses.A_BOLD)
+        stdscr.addstr(i, j, '_' if count % 2 == 0 else ' ', curses.color_pair(visible_color_indices[i]))
+
+def init_colors(stdscr=None):
+    curses.use_default_colors()
+    for i in range(0, curses.COLORS):
+        curses.init_pair(i + 1, i, -1)
+    if stdscr:
+        stdscr.nodelay(False)
+        for i in range(0, 255):
+            stdscr.addstr(f'{i} ', curses.color_pair(i))
+        stdscr.getch()
+        stdscr.nodelay(True)
+        stdscr.erase()
 
 def main(stdscr):
     stdscr.nodelay(True)
     stdscr.keypad(False)
     _, n_cols = stdscr.getmaxyx()
+
+    if curses.has_colors():
+        if is_debug:
+            init_colors(stdscr)
+        else:
+            init_colors()
 
     if is_sequencer:
         sounds = []
