@@ -18,7 +18,7 @@ n_instruments = 4
 labels = ['KICK', 'HIHAT', 'SNARE', 'CLICK']
 period = 1e3 # produce reasonable BPM
 gain = 0.1
-marker = '■'
+marker = '█'
 visible_color_indices = np.random.permutation([0, 2, 3, 4, 5, 6, 7, 10])
 
 key_per_char = {
