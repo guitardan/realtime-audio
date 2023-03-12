@@ -136,6 +136,21 @@ def init_colors(stdscr=None):
         stdscr.nodelay(True)
         stdscr.erase()
 
+def print_value(stdscr, key):
+    if key != -1:
+        stdscr.erase()
+        stdscr.addstr(0, 25, str(key) + ' (UNASSIGNED)', curses.A_NORMAL)
+
+def update_sequencer_ui(stdscr, grid, key, count, sounds, i, j):
+    update_grid(stdscr, grid, i, j)
+    if key == key_per_char['space_bar']:
+        sounds = process_key_press(stdscr, sounds, grid, i, j)
+    else:
+        blink_cursor(stdscr, grid, i, j, count)
+    i, j = process_arrow_key_input(key, i, j)
+    i, j = limit_to_grid(i, j, grid)
+    return i, j, sounds
+
 def main(stdscr):
     stdscr.nodelay(True)
     stdscr.keypad(False)
@@ -182,7 +197,6 @@ def main(stdscr):
         with sd.OutputStream(channels=2, callback=callback, samplerate=Fs):
             count, i, j = 0, 0, 0
             grid = np.zeros((n_instruments, n_beats))
-
             while True:
                 key = stdscr.getch()
 
@@ -197,20 +211,8 @@ def main(stdscr):
 
                 if not is_sequencer:
                     continue
-
-                update_grid(stdscr, grid, i, j)
-                if key == key_per_char['space_bar']:
-                    sounds = process_key_press(stdscr, sounds, grid, i, j)
-                else:
-                    blink_cursor(stdscr, grid, i, j, count)
-
-                i, j = process_arrow_key_input(key, i, j)
-                i, j = limit_to_grid(i, j, grid)
-
-                # if key != -1:
-                #     shell.erase()
-                #     shell.addstr(0, 25, str(key) + ' (UNASSIGNED)', curses.A_NORMAL)
-
+                
+                i, j, sounds = update_sequencer_ui(stdscr, grid, key, count, sounds, i, j)
                 count += 1
 
     except KeyboardInterrupt:
