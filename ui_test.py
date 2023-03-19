@@ -1,27 +1,6 @@
 import curses
 import numpy as np
 
-key_per_char = {
-    'down_arrow' : 258,
-    'up_arrow' : 259,
-    'left_arrow' : 260,
-    'right_arrow' : 261
-    }
-
-key_per_char = {
-    'return' : 10,
-    'space_bar' : 32,
-    'up_arrow' : 65,
-    'down_arrow' : 66,
-    'right_arrow' : 67,
-    'left_arrow' : 68,
-    'b' : 98
-    }
-
-n_instruments, n_beats = 4, 2
-single_instrument_layout = n_beats * [1, 1, 1, 1, 0, 0, 0, 0, 0]
-layout = np.vstack([single_instrument_layout for _ in range(n_instruments)])
-
 def get_grid(icon):
     hgap = ' ' * np.ones((icon.shape[0], 1), dtype=object)
     idx = 1 # using 0 for gaps
@@ -59,9 +38,6 @@ def get_icon(is_on = False):
         return icon_on
     return icon_off
 
-def blink_cursor(stdscr, i, j, count, marker):
-    stdscr.addstr(i, j, f'{marker}' if count % 2 == 0 else len(str(marker))*' ')
-
 def get_arrow_key_input(key, i, j, grid_map):
     idx = grid_map[i, j]
     i_step, j_step = get_steps(key)
@@ -76,13 +52,13 @@ def get_arrow_key_input(key, i, j, grid_map):
         return i, j
 
 def get_steps(key):
-    if key == key_per_char['right_arrow']:
+    if key == curses.KEY_RIGHT:
         return 0, 1
-    elif key == key_per_char['left_arrow']:
+    elif key == curses.KEY_LEFT:
         return 0, -1
-    elif key == key_per_char['up_arrow']:
+    elif key == curses.KEY_UP:
         return -1, 0
-    elif key == key_per_char['down_arrow']:
+    elif key == curses.KEY_DOWN:
         return 1, 0
     else:
         return 0, 0
@@ -98,30 +74,77 @@ def limit_arrow_key_input(i, j, max_i, max_j):
         j = max_j
     return i, j
 
+def blink_cursor(ui_grid, ui_map, i, j, count, icon):
+    if count % 2 == 0:
+        ui_grid[ui_map[i, j] == ui_map] = np.array(icon.shape[0]*icon.shape[1]*[' '])
+    return ui_grid
+
+def get_active_grid(icon, on_indices):
+    ui_grid, ui_map = get_grid(icon)
+    for m in range(ui_grid.shape[0]):
+        for n in range(ui_grid.shape[1]):
+            if ui_map[m, n] in on_indices:
+                ui_grid[ui_map[m, n] == ui_map] = get_icon(is_on=True).reshape(-1)
+    return ui_grid, ui_map
+
+def debug_print(stdscr, arr, vert_offset, horz_spacing = 3):
+    for m in range(arr.shape[0]):
+        for n in range(arr.shape[1]):
+            stdscr.addstr(m + vert_offset, horz_spacing*n, str(arr[m, n]))
+
+def debug_keys(stdscr):
+    # stdscr.keypad(False)
+    for key in [curses.KEY_DOWN, curses.KEY_UP, curses.KEY_LEFT, curses.KEY_RIGHT]:
+        stdscr.insstr(str(key) + ' ')
+    stdscr.getch()
+
+def draw_grid(stdscr, icon, on_indices, i, j, count):
+    ui_grid, ui_map = get_active_grid(icon, on_indices)
+    blink_cursor(ui_grid, ui_map, i, j, count, icon)
+    maxy, maxx = stdscr.getmaxyx()
+    for m in range(ui_grid.shape[0]):
+        for n in range(ui_grid.shape[1]):
+            if m >= maxy - 1 or n >= maxx - 1:
+                continue
+            stdscr.addstr(m, n, ui_grid[m, n], curses.A_BOLD)
+    return ui_grid, ui_map
+
+def process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices):
+    key = stdscr.getch()
+    i, j = get_arrow_key_input(key, i, j, ui_map)
+    i, j = limit_arrow_key_input(i, j, ui_grid.shape[0]-icon.shape[0], ui_grid.shape[1]-icon.shape[1])
+    if key == ord(' '):
+        if ui_map[i, j] in on_indices:
+            sound_on[np.unravel_index(ui_map[i, j]-1, sound_on.shape)] = 0
+            on_indices.remove(ui_map[i, j])
+        else:
+            sound_on[np.unravel_index(ui_map[i, j]-1, sound_on.shape)] = 1
+            on_indices.add(ui_map[i, j])
+    return i, j
+
 def build_ui(stdscr):
     i, j, count = 0, 0, 0
     icon = get_icon()
+    on_indices = set()
     while True:
-        ui_grid, ui_map = get_grid(icon)
-        ui_grid[ui_map[i, j] == ui_map] = get_icon(is_on=True).reshape(-1)
-        maxy, maxx = stdscr.getmaxyx()
-        for m in range(ui_grid.shape[0]):
-            for n in range(ui_grid.shape[1]):
-                if m >= maxy - 1 or n >= maxx - 1:
-                    continue
-                stdscr.addstr(m, n, ui_grid[m, n], curses.A_BOLD) # stdscr.insstr()
+        ui_grid, ui_map = draw_grid(stdscr, icon, on_indices, i, j, count)
+        i, j = process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices)
         count += 1
-        key = stdscr.getch()
-        i, j = get_arrow_key_input(key, i, j, ui_map)
-        i, j = limit_arrow_key_input(i, j, ui_grid.shape[0]-icon.shape[0], ui_grid.shape[1]-icon.shape[1])
 
-        stdscr.refresh()
-        #stdscr.erase()
-        #stdscr.clear()
+        debug_print(stdscr, sound_on, ui_grid.shape[0] + 5)
+
+        #stdscr.refresh()
+        #stdscr.erase() # stdscr.clear()
+
+n_instruments, n_beats = 4, 2
+single_instrument_layout = n_beats * [1, 1, 1, 1, 0, 0, 0, 0, 0]
+layout = np.vstack([single_instrument_layout for _ in range(n_instruments)])
+sound_on = np.zeros((n_instruments, single_instrument_layout.count(1)), dtype=int)
 
 def main(stdscr):
     stdscr.nodelay(True)
-    stdscr.keypad(False)
+    stdscr.keypad(True)
+
     build_ui(stdscr)
 
 curses.wrapper(main)
