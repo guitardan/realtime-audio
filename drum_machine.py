@@ -116,7 +116,8 @@ def draw_grid(stdscr, icon, on_indices, i, j):
 
     return ui_grid, ui_map
 
-def process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices):
+def process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices, tempo_delta_samples = 100):
+    global n_subdiv_samples
     key = stdscr.getch()
     i, j = get_arrow_key_input(key, i, j, ui_map)
     i, j = limit_arrow_key_input(i, j, ui_grid.shape[0]-icon.shape[0], ui_grid.shape[1]-icon.shape[1])
@@ -127,6 +128,12 @@ def process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices):
         else:
             sound_on[np.unravel_index(ui_map[i, j]-1, sound_on.shape)] = 1
             on_indices.add(ui_map[i, j])
+    elif key == ord('='):
+        n_subdiv_samples -= tempo_delta_samples
+        if n_subdiv_samples <= 0:
+            n_subdiv_samples += 2*tempo_delta_samples
+    elif key == ord('-'):
+        n_subdiv_samples += tempo_delta_samples
     return i, j
 
 def get_indices():
@@ -142,7 +149,6 @@ def build_ui(stdscr):
     icon = get_icon()
     on_indices = get_indices()
     threading.Thread(target=play_audio).start()
-    #with stream: # couples UI & audio threads, causing stuttering playback
     while True:
         ui_grid, ui_map = draw_grid(stdscr, icon, on_indices, i, j)
         i, j = process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices)
@@ -183,8 +189,11 @@ def init_colors(stdscr=None):
 idx = 0
 def callback(outdata, frames, time, status):
     global idx
-    output_signal = get_superposition().sum(axis=0).reshape(-1, 1)
-    outdata[:] = gain * output_signal[idx:idx+frames]
+    try:
+        output_signal = get_superposition().sum(axis=0).reshape(-1, 1)
+        outdata[:] = gain * output_signal[idx:idx+frames]
+    except ValueError: # extreme tempo changes
+        outdata[:] = np.zeros((frames,1))
     idx += frames
     if idx > len(output_signal)-frames:
         idx = 0
