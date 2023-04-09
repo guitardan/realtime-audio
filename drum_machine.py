@@ -2,6 +2,7 @@ import sys, curses, threading
 import numpy as np
 import sounddevice as sd
 import waveforms as wfs
+import time
 
 def get_grid(icon):
     hgap = ' ' * np.ones((icon.shape[0], 1), dtype=object)
@@ -76,8 +77,8 @@ def limit_arrow_key_input(i, j, max_i, max_j):
         j = max_j
     return i, j
 
-def blink_cursor(ui_grid, ui_map, i, j, count, icon):
-    if count % 2 == 0:
+def blink_cursor(ui_grid, ui_map, i, j, icon, period_s = 0.25):
+    if time.time() % period_s < period_s / 2:
         ui_grid[ui_map[i, j] == ui_map] = np.array(icon.shape[0]*icon.shape[1]*[' '])
     return ui_grid
 
@@ -100,9 +101,9 @@ def debug_keys(stdscr):
         stdscr.insstr(str(key) + ' ')
     stdscr.getch()
 
-def draw_grid(stdscr, icon, on_indices, i, j, count):
+def draw_grid(stdscr, icon, on_indices, i, j):
     ui_grid, ui_map = get_active_grid(icon, on_indices)
-    blink_cursor(ui_grid, ui_map, i, j, count, icon)
+    blink_cursor(ui_grid, ui_map, i, j, icon)
     maxy, maxx = stdscr.getmaxyx()
     cidx = 0
     for m in range(ui_grid.shape[0]):
@@ -137,15 +138,14 @@ def get_indices():
     return indices
 
 def build_ui(stdscr):
-    i, j, count = 0, 0, 0
+    i, j = 0, 0
     icon = get_icon()
     on_indices = get_indices()
     threading.Thread(target=play_audio).start()
     #with stream: # couples UI & audio threads, causing stuttering playback
     while True:
-        ui_grid, ui_map = draw_grid(stdscr, icon, on_indices, i, j, count)
+        ui_grid, ui_map = draw_grid(stdscr, icon, on_indices, i, j)
         i, j = process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices)
-        count += 1
 
         #debug_print(stdscr, sound_on, ui_grid.shape[0] + 5)
         #stdscr.addstr(ui_grid.shape[0] + 10, 0, str(on_indices))
@@ -203,9 +203,9 @@ stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samp
 
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
 waveforms = [
-    wfs.get_hihat(),
     wfs.get_kick(),
     wfs.get_snare(Fs=samplerate),
+    wfs.get_hihat(),
     wfs.get_click(Fs=samplerate),
     wfs.get_modulated_sine(Fs=samplerate)
 ]
