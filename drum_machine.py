@@ -27,14 +27,14 @@ def get_grid(icon):
 
 def get_icon(is_on = False):
     icon_on = np.array([
-        ['╭', '─', '─', '─', '─', '-', '╮', ' '],
-        ['│', ' ', '█', '█', '█', ' ', '│', ' '],
-        ['╰', '─', '─', '─', '─', '─', '╯', ' ']
+        ['╭', ' ', '-', ' ', '-', ' ', '╮', ' '],
+        [' ', ' ', '█', '█', '█', ' ', ' ', ' '],
+        ['╰', ' ', '-', ' ', '-', ' ', '╯', ' ']
     ])
     icon_off = np.array([
-        ['╭', '─', '─', '─', '─', '─', '╮', ' '], 
-        ['│', ' ', ' ', ' ', ' ', ' ', '│', ' '],
-        ['╰', '─', '─', '─', '─', '─', '╯', ' ']
+        ['╭', ' ', '-', ' ', '-', ' ', '╮', ' '], 
+        [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+        ['╰', ' ', '-', ' ', '-', ' ', '╯', ' ']
     ])
     assert icon_on.shape == icon_off.shape
     if is_on:
@@ -192,11 +192,11 @@ def callback(outdata, frames, time, status):
     try:
         output_signal = get_superposition().sum(axis=0).reshape(-1, 1)
         outdata[:] = gain * output_signal[idx:idx+frames]
+        idx += frames
+        if idx > len(output_signal)-frames:
+            idx = 0
     except ValueError: # extreme tempo changes
         outdata[:] = np.zeros((frames,1))
-    idx += frames
-    if idx > len(output_signal)-frames:
-        idx = 0
 
 n_instruments, n_beats = 4, 4
 instr_color_idx = [14, 4, 11, 7]
