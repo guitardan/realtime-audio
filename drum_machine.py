@@ -154,7 +154,10 @@ def build_ui(stdscr):
         i, j = process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices)
 
         #debug_print(stdscr, sound_on, ui_grid.shape[0] + 5)
-        #stdscr.addstr(ui_grid.shape[0] + 10, 0, str(on_indices))
+        stdscr.addstr(ui_grid.shape[0] + 1, 0, '(DE)ACTIVATE SOUND: <spacebar>')
+        stdscr.addstr(ui_grid.shape[0] + 2, 0, 'MOVE CURSOR: ← / ↑ / → / ↓')
+        stdscr.addstr(ui_grid.shape[0] + 3, 0, 'CHANGE TEMPO: + / -')
+        stdscr.addstr(ui_grid.shape[0] + 4, 0, 'EXIT: CTRL + C')
         stdscr.refresh() # stdscr.erase() # stdscr.clear()
 
 def get_superposition():
