@@ -1,7 +1,7 @@
 import sys, curses, threading
 import numpy as np
 import sounddevice as sd
-import waveforms as wfs
+from . import waveforms as wfs
 import time
 
 def get_grid(icon):
