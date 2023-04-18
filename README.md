@@ -1,3 +1,3 @@
 ## DRUM MACHINE
 
-python -m drum-machine
+python -m drummachine
