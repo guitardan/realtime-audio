@@ -1,3 +1,7 @@
-## DRUM MACHINE
+# Drum Machine
 
-python -m drummachine
+## Installation
+    pip install drummachine
+
+## Run
+    python -m drummachine
