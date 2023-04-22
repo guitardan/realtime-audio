@@ -177,6 +177,17 @@ def play_audio():
             if stream.stopped:
                 break
 
+def get_samplerate():
+    output_device = sd.query_devices(kind='output')
+    try:
+        return output_device['default_samplerate']
+    except TypeError:
+        print('no output device available, terminating...')
+        sys.exit(0)
+    except KeyError:
+        print('no default samplerate available, terminating...')
+        sys.exit(0)
+
 def init_colors(stdscr=None):
     curses.use_default_colors()
     for i in range(0, curses.COLORS):
@@ -210,7 +221,7 @@ sound_on = np.random.randint(low=0, high=2, size=(n_instruments, single_instrume
 
 gain = 0.01
 n_channels = 2
-samplerate = sd.query_devices('output')['default_samplerate']
+samplerate = get_samplerate()
 stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samplerate)
 
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
