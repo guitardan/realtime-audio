@@ -117,7 +117,7 @@ def draw_grid(stdscr, icon, on_indices, i, j):
     return ui_grid, ui_map
 
 def process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices, tempo_delta_samples = 100):
-    global n_subdiv_samples
+    global n_subdiv_samples, sound_on
     key = stdscr.getch()
     i, j = get_arrow_key_input(key, i, j, ui_map)
     i, j = limit_arrow_key_input(i, j, ui_grid.shape[0]-icon.shape[0], ui_grid.shape[1]-icon.shape[1])
@@ -134,6 +134,8 @@ def process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices, tempo_del
             n_subdiv_samples += 2*tempo_delta_samples
     elif key == ord('-'):
         n_subdiv_samples += tempo_delta_samples
+    elif key == ord('r'):
+        sound_on = np.random.randint(low=0, high=2, size=(n_instruments, single_instrument_layout.count(1)))
     return i, j
 
 def get_indices():
@@ -144,20 +146,25 @@ def get_indices():
         row_idx += len(row)
     return indices
 
+def display_help(stdscr, y0):
+    stdscr.addstr(y0 + 1, 0, 'MOVE CURSOR: ← / ↑ / → / ↓')
+    stdscr.addstr(y0 + 2, 0, '(DE)ACTIVATE SOUND: <spacebar>')
+    stdscr.addstr(y0 + 3, 0, 'CHANGE TEMPO: + / -')
+    stdscr.addstr(y0 + 4, 0, 'RANDOM BEAT: R')
+    stdscr.addstr(y0 + 5, 0, 'EXIT: CTRL + C')
+
 def build_ui(stdscr):
     i, j = 0, 0
     icon = get_icon()
-    on_indices = get_indices()
     threading.Thread(target=play_audio).start()
+
     while True:
+        on_indices = get_indices()
         ui_grid, ui_map = draw_grid(stdscr, icon, on_indices, i, j)
         i, j = process_key_press(stdscr, i, j, ui_grid, ui_map, icon, on_indices)
 
         #debug_print(stdscr, sound_on, ui_grid.shape[0] + 5)
-        stdscr.addstr(ui_grid.shape[0] + 1, 0, '(DE)ACTIVATE SOUND: <spacebar>')
-        stdscr.addstr(ui_grid.shape[0] + 2, 0, 'MOVE CURSOR: ← / ↑ / → / ↓')
-        stdscr.addstr(ui_grid.shape[0] + 3, 0, 'CHANGE TEMPO: + / -')
-        stdscr.addstr(ui_grid.shape[0] + 4, 0, 'EXIT: CTRL + C')
+        display_help(stdscr, ui_grid.shape[0])
         stdscr.refresh() # stdscr.erase() # stdscr.clear()
 
 def get_superposition():
@@ -219,8 +226,7 @@ n_instruments, n_beats = 4, 4
 instr_color_idx = [14, 4, 11, 7]
 single_instrument_layout = n_beats * [1, 1, 1, 1, 0, 0, 0, 0]
 layout = np.vstack([single_instrument_layout for _ in range(n_instruments)])
-#sound_on = np.zeros((n_instruments, single_instrument_layout.count(1)), dtype=int)
-sound_on = np.random.randint(low=0, high=2, size=(n_instruments, single_instrument_layout.count(1)))
+sound_on = np.zeros((n_instruments, single_instrument_layout.count(1)), dtype=int)
 
 gain = 0.01
 n_channels = 2
