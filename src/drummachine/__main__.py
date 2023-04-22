@@ -191,7 +191,10 @@ def get_samplerate():
 def init_colors(stdscr=None):
     curses.use_default_colors()
     for i in range(0, curses.COLORS):
-        curses.init_pair(i + 1, i, -1)
+        try:
+            curses.init_pair(i + 1, i, -1)
+        except ValueError:
+            break
     if stdscr:
         stdscr.nodelay(False)
         for i in range(0, 255):
