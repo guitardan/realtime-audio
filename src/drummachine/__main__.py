@@ -1,8 +1,10 @@
-import sys, curses, threading
+import sys, time, curses, threading
 import numpy as np
 import sounddevice as sd
-from . import waveforms as wfs
-import time
+try:
+    from . import waveforms as wfs
+except ImportError: # running as script in development
+    import waveforms as wfs
 
 def get_grid(icon):
     hgap = ' ' * np.ones((icon.shape[0], 1), dtype=object)
@@ -147,11 +149,11 @@ def get_indices():
     return indices
 
 def display_help(stdscr, y0):
-    stdscr.addstr(y0 + 1, 0, 'MOVE CURSOR: ← / ↑ / → / ↓')
-    stdscr.addstr(y0 + 2, 0, '(DE)ACTIVATE SOUND: <spacebar>')
-    stdscr.addstr(y0 + 3, 0, 'CHANGE TEMPO: + / -')
-    stdscr.addstr(y0 + 4, 0, 'RANDOM BEAT: R')
-    stdscr.addstr(y0 + 5, 0, 'EXIT: CTRL + C')
+    stdscr.addstr(y0 + 1, 0, '(DE)ACTIVATE SOUND:   <spacebar>')
+    stdscr.addstr(y0 + 2, 0, 'CHANGE TEMPO:         + / -')
+    stdscr.addstr(y0 + 3, 0, 'RANDOM BEAT:          R')
+    stdscr.addstr(y0 + 4, 0, 'MOVE CURSOR:          ← / ↑ / → / ↓')
+    stdscr.addstr(y0 + 5, 0, 'EXIT:                 CTRL + C')
 
 def build_ui(stdscr):
     i, j = 0, 0
@@ -255,6 +257,5 @@ def main(stdscr):
         curses.echo()
         curses.endwin()
 
-#sys.exit(0)
 if __name__ == "__main__":
     curses.wrapper(main)
