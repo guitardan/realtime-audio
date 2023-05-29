@@ -154,6 +154,7 @@ def display_help(stdscr, y0):
     stdscr.addstr(y0 + 3, 0, 'RANDOM BEAT:          R')
     stdscr.addstr(y0 + 4, 0, 'MOVE CURSOR:          ← / ↑ / → / ↓')
     stdscr.addstr(y0 + 5, 0, 'EXIT:                 CTRL + C')
+    stdscr.addstr(y0 + 7, 0, f'AUDIO PLAYER STATUS:  {current_status}')
 
 def build_ui(stdscr):
     i, j = 0, 0
@@ -212,9 +213,14 @@ def init_colors(stdscr=None):
         stdscr.nodelay(True)
         stdscr.erase()
 
-idx = 0
+idx, current_status, status_time = 0, '', None
 def callback(outdata, frames, time, status):
-    global idx
+    global idx, current_status, status_time
+    if status:
+        current_status = status
+        status_time = time.currentTime
+    if status_time and error_display_time_s < time.currentTime - status_time:
+        current_status = ' '*16 # clear
     try:
         output_signal = get_superposition().sum(axis=0).reshape(-1, 1)
         outdata[:] = gain * output_signal[idx:idx+frames]
@@ -229,6 +235,7 @@ instr_color_idx = [14, 4, 11, 7]
 single_instrument_layout = n_beats * [1, 1, 1, 1, 0, 0, 0, 0]
 layout = np.vstack([single_instrument_layout for _ in range(n_instruments)])
 sound_on = np.zeros((n_instruments, single_instrument_layout.count(1)), dtype=int)
+error_display_time_s = 5
 
 gain = 0.01
 n_channels = 2
@@ -244,6 +251,7 @@ waveforms = [
     wfs.get_modulated_sine(Fs=samplerate)
 ]
 
+#sys.exit(0)
 def main(stdscr):
     stdscr.nodelay(True)
     stdscr.keypad(True)
