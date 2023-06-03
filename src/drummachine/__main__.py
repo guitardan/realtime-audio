@@ -5,6 +5,7 @@ try:
     from . import waveforms as wfs
 except ImportError: # running as script in development
     import waveforms as wfs
+    from samples import get_sample_waveforms
 
 def get_grid(icon):
     hgap = ' ' * np.ones((icon.shape[0], 1), dtype=object)
@@ -219,7 +220,7 @@ def callback(outdata, frames, time, status):
     if status:
         current_status = status
         status_time = time.currentTime
-    if status_time and error_display_time_s < time.currentTime - status_time:
+    if status_time and status_display_time_s < time.currentTime - status_time:
         current_status = ' '*16 # clear
     try:
         output_signal = get_superposition().sum(axis=0).reshape(-1, 1)
@@ -230,12 +231,12 @@ def callback(outdata, frames, time, status):
     except ValueError: # extreme tempo changes
         outdata[:] = np.zeros((frames,1))
 
-n_instruments, n_beats = 4, 4
-instr_color_idx = [14, 4, 11, 7]
+n_instruments, n_beats = 5, 4
+instr_color_idx = [14, 4, 11, 7, 5]
 single_instrument_layout = n_beats * [1, 1, 1, 1, 0, 0, 0, 0]
 layout = np.vstack([single_instrument_layout for _ in range(n_instruments)])
 sound_on = np.zeros((n_instruments, single_instrument_layout.count(1)), dtype=int)
-error_display_time_s = 5
+status_display_time_s = 3
 
 gain = 0.01
 n_channels = 2
@@ -243,13 +244,20 @@ samplerate = get_samplerate()
 stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samplerate)
 
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
-waveforms = [
-    wfs.get_kick(),
-    wfs.get_snare(Fs=samplerate),
-    wfs.get_hihat(),
-    wfs.get_click(Fs=samplerate),
-    wfs.get_modulated_sine(Fs=samplerate)
-]
+
+try:
+    waveforms = get_sample_waveforms()
+    gain = 0.1
+except Exception as ex:
+    print(ex)
+    print('error downloading samples, generating waveforms instead')
+    waveforms = [
+        wfs.get_kick(),
+        wfs.get_snare(Fs=samplerate),
+        wfs.get_hihat(),
+        wfs.get_click(Fs=samplerate),
+        wfs.get_modulated_sine(Fs=samplerate)
+    ]
 
 #sys.exit(0)
 def main(stdscr):
