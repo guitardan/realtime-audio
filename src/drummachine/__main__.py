@@ -1,6 +1,7 @@
-import sys, time, curses, threading
+import sys, curses, threading
 import numpy as np
 import sounddevice as sd
+from time import time, perf_counter_ns
 try:
     from . import waveforms as wfs
 except ImportError: # running as script in development
@@ -81,7 +82,7 @@ def limit_arrow_key_input(i, j, max_i, max_j):
     return i, j
 
 def blink_cursor(ui_grid, ui_map, i, j, icon, period_s = 0.25):
-    if time.time() % period_s < period_s / 2:
+    if time() % period_s < period_s / 2:
         ui_grid[ui_map[i, j] == ui_map] = np.array(icon.shape[0]*icon.shape[1]*[' '])
     return ui_grid
 
@@ -149,13 +150,18 @@ def get_indices():
         row_idx += len(row)
     return indices
 
+count, elapsed_total, elapsed = 1, 0, 0
 def display_help(stdscr, y0):
+    global count, elapsed_total
+    elapsed_total += elapsed
     stdscr.addstr(y0 + 1, 0, '(DE)ACTIVATE SOUND:   <spacebar>')
     stdscr.addstr(y0 + 2, 0, 'CHANGE TEMPO:         + / -')
     stdscr.addstr(y0 + 3, 0, 'RANDOM BEAT:          R')
     stdscr.addstr(y0 + 4, 0, 'MOVE CURSOR:          ← / ↑ / → / ↓')
     stdscr.addstr(y0 + 5, 0, 'EXIT:                 CTRL + C')
     stdscr.addstr(y0 + 7, 0, f'AUDIO PLAYER STATUS:  {current_status}')
+    stdscr.addstr(y0 + 8, 0, f'MEAN CALLBACK TIME:   {int(elapsed_total/count)} [ns]')
+    count += 1
 
 def build_ui(stdscr):
     i, j = 0, 0
@@ -216,7 +222,8 @@ def init_colors(stdscr=None):
 
 idx, current_status, status_time = 0, '', None
 def callback(outdata, frames, time, status):
-    global idx, current_status, status_time
+    global idx, current_status, status_time, elapsed
+    st = perf_counter_ns()
     if status:
         current_status = status
         status_time = time.currentTime
@@ -230,6 +237,7 @@ def callback(outdata, frames, time, status):
             idx = 0
     except ValueError: # extreme tempo changes
         outdata[:] = np.zeros((frames,1))
+    elapsed = perf_counter_ns() - st
 
 n_instruments, n_beats = 5, 4
 instr_color_idx = [14, 4, 11, 7, 5]
@@ -246,6 +254,7 @@ stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samp
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
 
 try:
+    raise Exception('debug')
     waveforms = get_sample_waveforms()
     gain = 0.1
 except Exception as ex:
