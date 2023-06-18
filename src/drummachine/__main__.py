@@ -258,12 +258,14 @@ stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samp
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
 
 try:
-    #raise Exception('debugging')
-    waveforms = samples.get_waveforms()
-    gain = 0.1
+    if len(sys.argv) > 1:
+        waveforms = samples.get_waveforms()
+        gain = 0.1
+    else:
+        raise Exception('provide a command-line argument to download drum samples')
 except Exception as ex:
     print(ex)
-    print('error downloading samples, generating waveforms instead')
+    print('generating waveforms...')
     waveforms = [
         wfs.get_kick(),
         wfs.get_snare(Fs=samplerate),
