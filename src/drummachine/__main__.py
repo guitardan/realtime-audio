@@ -212,6 +212,8 @@ def init_colors(stdscr=None):
             curses.init_pair(i + 1, i, -1)
         except ValueError:
             break
+        except Exception as ex: # Windows
+            print(f'{type(ex)}: {ex}')
     if stdscr:
         stdscr.nodelay(False)
         for i in range(0, 255):
