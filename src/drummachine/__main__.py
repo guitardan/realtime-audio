@@ -4,9 +4,10 @@ import sounddevice as sd
 from time import time, perf_counter_ns
 try:
     from . import waveforms as wfs
+    from . import samples
 except ImportError: # running as script in development
     import waveforms as wfs
-    from samples import get_sample_waveforms
+    import samples
 
 def get_grid(icon):
     hgap = ' ' * np.ones((icon.shape[0], 1), dtype=object)
@@ -212,8 +213,9 @@ def init_colors(stdscr=None):
             curses.init_pair(i + 1, i, -1)
         except ValueError:
             break
-        except Exception as ex: # Windows
-            print(f'{type(ex)}: {ex}')
+        except Exception as ex: # windows-curses
+            if sys.platform != 'win32':
+                raise ex
     if stdscr:
         stdscr.nodelay(False)
         for i in range(0, 255):
@@ -256,8 +258,8 @@ stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samp
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
 
 try:
-    raise Exception('debug')
-    waveforms = get_sample_waveforms()
+    #raise Exception('debugging')
+    waveforms = samples.get_waveforms()
     gain = 0.1
 except Exception as ex:
     print(ex)

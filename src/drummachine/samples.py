@@ -9,7 +9,7 @@ def print_attribution():
     license = 'CC BY 3.0 (https://creativecommons.org/licenses/by/3.0)'
     print(f'{name}\nby {author}\nis licensed under {license}.')
 
-def get_sample_waveforms():
+def get_waveforms():
     print_attribution()
     base_url = 'https://archive.org/download/mailboxbadgerdrumsamplesvolume2/Analog%20'
     indices_per_sound = {

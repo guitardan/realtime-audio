@@ -22,6 +22,7 @@ keywords = ["music", "audio", "drums"]
 dependencies = [
     "numpy",
     "sounddevice",
+    "soundfile",
     "windows-curses ; platform_system == 'Windows'"
 ]
 
