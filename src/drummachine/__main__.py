@@ -258,7 +258,7 @@ status_display_time_s = 3
 gain = 5
 n_channels = 2
 samplerate = get_samplerate()
-stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samplerate, device=3)
+stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samplerate)
 
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
 print(args)
