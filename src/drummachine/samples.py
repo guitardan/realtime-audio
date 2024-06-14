@@ -40,10 +40,11 @@ def get_waveforms_local(directory_path, file_names=None):
     Load and return a set of waveforms from .wav files in a specified directory.
 
     This function reads specified .wav files from the given directory and returns their waveforms
-    as a list of numpy arrays. If no file names are specified, it loads all .wav files in the directory.
+    as a list of numpy arrays. Only mono waveforms are accepted. 
+    If no file names are specified, it loads all .wav files in the directory.
 
     Args:
-        directory_path (str): The absolute path to the directory containing .wav files.
+        directory_path (str): The relative path to the directory containing .wav files.
         file_names (list, optional): A list of specific .wav file names to load. Defaults to None.
 
     Returns:
@@ -73,6 +74,11 @@ def get_waveforms_local(directory_path, file_names=None):
     for wav_file in wav_files:
         file_path = os.path.join(directory_path, wav_file)
         waveform, _ = sf.read(file_path)
+        if waveform.ndim >1:         
+            print("converting stereo to mono")
+            waveform = waveform.mean(axis=1)
+        if waveform.ndim >2:
+            raise ValueError(f"mono or stereo waveform expected, array has {waveform.ndim} dimensions")
         waveform_list.append(waveform)
     
     return waveform_list
