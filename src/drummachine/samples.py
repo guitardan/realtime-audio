@@ -75,7 +75,7 @@ def get_waveforms_local(directory_path, file_names=None):
         file_path = os.path.join(directory_path, wav_file)
         waveform, _ = sf.read(file_path)
         if waveform.ndim >1:         
-            print("converting stereo to mono")
+            print(f"converting '{wav_file}' from stereo to mono")
             waveform = waveform.mean(axis=1)
         if waveform.ndim >2:
             raise ValueError(f"mono or stereo waveform expected, array has {waveform.ndim} dimensions")
