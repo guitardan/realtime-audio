@@ -255,17 +255,18 @@ layout = np.vstack([single_instrument_layout for _ in range(n_instruments)])
 sound_on = np.zeros((n_instruments, single_instrument_layout.count(1)), dtype=int)
 status_display_time_s = 3
 
-gain = 0.01
+gain = 5
 n_channels = 2
 samplerate = get_samplerate()
 stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samplerate, device=3)
 
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
+print(args)
 
 if args.online:
     waveforms = samples.get_waveforms()
-    gain = 0.1
 elif args.directory:
+    print(f"Loading local waveforms from {args.directory}")
     waveforms = samples.get_waveforms_local(args.directory)
 else:
     print('generating waveforms...')
@@ -276,6 +277,8 @@ else:
         wfs.get_click(Fs=samplerate),
         wfs.get_modulated_sine(Fs=samplerate)
     ]
+    gain = 0.01
+
 
 #sys.exit(0)
 def main(stdscr):
