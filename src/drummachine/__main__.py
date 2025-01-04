@@ -1,4 +1,4 @@
-import sys, curses, threading
+import sys, argparse, curses, threading
 import numpy as np
 import sounddevice as sd
 from time import time, perf_counter_ns
@@ -243,6 +243,11 @@ def callback(outdata, frames, time, status):
         outdata[:] = np.zeros((frames,1))
     elapsed = perf_counter_ns() - st
 
+parser = argparse.ArgumentParser(description="Drum machine")
+parser.add_argument("-d", "--directory", type=str, help="Specify folder with local samples")
+parser.add_argument("-o", "--online", action="store_true", help="Enables sample download from archive.org/download/mailboxbadgerdrumsamplesvolume2")
+args = parser.parse_args()
+
 n_instruments, n_beats = 5, 4
 instr_color_idx = [14, 4, 11, 7, 5]
 single_instrument_layout = n_beats * [1, 1, 1, 1, 0, 0, 0, 0]
@@ -250,21 +255,20 @@ layout = np.vstack([single_instrument_layout for _ in range(n_instruments)])
 sound_on = np.zeros((n_instruments, single_instrument_layout.count(1)), dtype=int)
 status_display_time_s = 3
 
-gain = 0.01
+gain = 5
 n_channels = 2
 samplerate = get_samplerate()
 stream = sd.OutputStream(channels=n_channels, callback=callback, samplerate=samplerate)
 
 n_subdiv_samples = int(samplerate // 8) # 120 BPM, 16th note subdiv
+print(args)
 
-try:
-    if len(sys.argv) > 1:
-        waveforms = samples.get_waveforms()
-        gain = 0.1
-    else:
-        raise Exception('provide a command-line argument to download drum samples')
-except Exception as ex:
-    print(ex)
+if args.online:
+    waveforms = samples.get_waveforms()
+elif args.directory:
+    print(f"Loading local waveforms from {args.directory}")
+    waveforms = samples.get_waveforms_local(args.directory)
+else:
     print('generating waveforms...')
     waveforms = [
         wfs.get_kick(),
@@ -273,6 +277,8 @@ except Exception as ex:
         wfs.get_click(Fs=samplerate),
         wfs.get_modulated_sine(Fs=samplerate)
     ]
+    gain = 0.01
+
 
 #sys.exit(0)
 def main(stdscr):
